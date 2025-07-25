@@ -40,15 +40,14 @@ function SimpleUI:CreateWindow(title)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 6)
 
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        container.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end)
+
     self.Gui = gui
     self.Frame = frame
     self.Container = container
     self.Layout = layout
-
-    -- Auto update canvas size based on contents
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        container.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-    end)
 
     return self
 end
@@ -64,9 +63,7 @@ function SimpleUI:AddButton(text, callback)
     btn.Parent = self.Container
 
     btn.MouseButton1Click:Connect(function()
-        if callback then
-            callback()
-        end
+        if callback then callback() end
     end)
 end
 
@@ -85,13 +82,113 @@ function SimpleUI:AddToggle(text, default, callback)
     btn.MouseButton1Click:Connect(function()
         toggled = not toggled
         btn.Text = (toggled and "[✓] " or "[ ] ") .. text
-        if callback then
-            callback(toggled)
+        if callback then callback(toggled) end
+    end)
+end
+
+function SimpleUI:AddSlider(text, min, max, default, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    frame.BorderSizePixel = 0
+    frame.Parent = self.Container
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0.5, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1,1,1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 18
+    label.Text = text .. ": " .. default
+    label.Parent = frame
+
+    local slider = Instance.new("TextButton")
+    slider.Size = UDim2.new(1, -10, 0.5, -5)
+    slider.Position = UDim2.new(0, 5, 0.5, 5)
+    slider.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+    slider.Text = ""
+    slider.BorderSizePixel = 0
+    slider.Parent = frame
+
+    local fill = Instance.new("Frame", slider)
+    fill.BackgroundColor3 = Color3.fromRGB(80, 170, 255)
+    fill.BorderSizePixel = 0
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+
+    local dragging = false
+    local function update(input)
+        local relX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local value = math.floor((relX * (max - min)) + min + 0.5)
+        fill.Size = UDim2.new(relX, 0, 1, 0)
+        label.Text = text .. ": " .. value
+        if callback then callback(value) end
+    end
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input)
         end
     end)
 end
 
--- Optional: hide/show UI with RightShift
+function SimpleUI:AddInput(text, placeholder, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    frame.BorderSizePixel = 0
+    frame.Parent = self.Container
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.4, -5, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1,1,1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 18
+    label.Text = text
+    label.Position = UDim2.new(0, 5, 0, 0)
+    label.Parent = frame
+
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(0.6, -10, 1, -10)
+    inputBox.Position = UDim2.new(0.4, 5, 0, 5)
+    inputBox.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+    inputBox.TextColor3 = Color3.new(1,1,1)
+    inputBox.PlaceholderText = placeholder or ""
+    inputBox.Text = ""
+    inputBox.Font = Enum.Font.SourceSans
+    inputBox.TextSize = 18
+    inputBox.ClearTextOnFocus = false
+    inputBox.Parent = frame
+
+    inputBox.FocusLost:Connect(function(enter)
+        if enter and callback then
+            callback(inputBox.Text)
+        end
+    end)
+end
+
+function SimpleUI:AddSeparator()
+    local sep = Instance.new("Frame")
+    sep.Size = UDim2.new(1, -10, 0, 2)
+    sep.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    sep.BorderSizePixel = 0
+    sep.Parent = self.Container
+end
+
+-- RightShift UI toggle
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.RightShift then
         local gui = player.PlayerGui:FindFirstChild("SimpleUI")
@@ -101,10 +198,9 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- Create one global UI window:
+-- Create global UI window:
 local MainUI = SimpleUI:CreateWindow("Simple UI")
 
--- Run function to add buttons/toggles easily
 function run(func)
     func(MainUI)
 end
