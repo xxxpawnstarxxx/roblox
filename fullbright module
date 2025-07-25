@@ -1,0 +1,72 @@
+run(function(ui)
+    local lightingService = game:GetService("Lighting")
+
+    local Fullbright = {}
+    local originalSettings = {}
+    local changed = false
+    local connection
+
+    local function applyFullbright()
+        if changed then return end
+        changed = true
+
+        -- Save current settings
+        originalSettings.Brightness = lightingService.Brightness
+        originalSettings.ClockTime = lightingService.ClockTime
+        originalSettings.FogEnd = lightingService.FogEnd
+        originalSettings.GlobalShadows = lightingService.GlobalShadows
+        originalSettings.OutdoorAmbient = lightingService.OutdoorAmbient
+
+        -- Apply fullbright settings
+        lightingService.Brightness = 2
+        lightingService.ClockTime = 14
+        lightingService.FogEnd = 100000
+        lightingService.GlobalShadows = false
+        lightingService.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+
+        changed = false
+    end
+
+    local function restoreLighting()
+        for name, val in pairs(originalSettings) do
+            lightingService[name] = val
+        end
+        originalSettings = {}
+    end
+
+    local function onLightingChanged()
+        if changed then return end
+        changed = true
+
+        -- Reapply fullbright if someone changes lighting while enabled
+        applyFullbright()
+
+        changed = false
+    end
+
+    function Fullbright:Enable()
+        applyFullbright()
+        connection = lightingService.Changed:Connect(onLightingChanged)
+    end
+
+    function Fullbright:Disable()
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        restoreLighting()
+    end
+
+    function Fullbright:Toggle(state)
+        if state then
+            self:Enable()
+        else
+            self:Disable()
+        end
+    end
+
+    -- Add toggle button to UI
+    ui:AddToggle("Fullbright", false, function(enabled)
+        Fullbright:Toggle(enabled)
+    end)
+end)
