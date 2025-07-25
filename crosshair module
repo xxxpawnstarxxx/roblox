@@ -1,0 +1,67 @@
+run(function(ui)
+    local Crosshair = {}
+    local RunService = game:GetService("RunService")
+    local Camera = workspace.CurrentCamera
+
+    local size = 6
+    local thickness = 1
+    local color = Color3.new(1, 1, 1)
+
+    local hLine = Drawing.new("Line")
+    hLine.Color = color
+    hLine.Thickness = thickness
+    hLine.Transparency = 1
+    hLine.Visible = false
+
+    local vLine = Drawing.new("Line")
+    vLine.Color = color
+    vLine.Thickness = thickness
+    vLine.Transparency = 1
+    vLine.Visible = false
+
+    local connection
+
+    local function update()
+        local center = Camera.ViewportSize / 2
+        hLine.From = center - Vector2.new(size, 0)
+        hLine.To = center + Vector2.new(size, 0)
+
+        vLine.From = center - Vector2.new(0, size)
+        vLine.To = center + Vector2.new(0, size)
+    end
+
+    function Crosshair:Enable()
+        if connection then return end
+        hLine.Visible = true
+        vLine.Visible = true
+        connection = RunService.RenderStepped:Connect(update)
+    end
+
+    function Crosshair:Disable()
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        hLine.Visible = false
+        vLine.Visible = false
+    end
+
+    function Crosshair:Toggle()
+        if connection then
+            self:Disable()
+        else
+            self:Enable()
+        end
+    end
+
+    Crosshair.Enabled = false
+
+    ui:AddToggle("Crosshair", false, function(enabled)
+        if enabled then
+            Crosshair:Enable()
+        else
+            Crosshair:Disable()
+        end
+        Crosshair.Enabled = enabled
+    end)
+end)
