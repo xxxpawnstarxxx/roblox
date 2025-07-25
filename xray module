@@ -1,0 +1,28 @@
+run(function(ui)
+    local modified = {}
+
+    local function modifyPart(v)
+        if v:IsA("BasePart") and not table.find(modified, v) then
+            modified[v] = true
+            v.LocalTransparencyModifier = 0.5
+        end
+    end
+
+    ui:AddToggle("Xray", false, function(enabled)
+        if enabled then
+            -- Enable Xray: modify existing parts
+            for _, part in pairs(workspace:GetDescendants()) do
+                modifyPart(part)
+            end
+            -- Optionally add listener for new parts if needed
+        else
+            -- Disable Xray: revert modifications
+            for part in pairs(modified) do
+                if part and part:IsA("BasePart") then
+                    part.LocalTransparencyModifier = 0
+                end
+            end
+            modified = {}
+        end
+    end)
+end)
